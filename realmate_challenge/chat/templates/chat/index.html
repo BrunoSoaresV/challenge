@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Visualizador de Conversas</title>
+    <style>
+        body{font-family:Arial,sans-serif;background:#f4f4f9;margin:0;padding:0;} /* Changed padding to 0 */
+        .top-menu {
+            background-color: #2c3e50; /* Dark blue-grey */
+            color: white;
+            margin-bottom: 1.5rem; /* Space below menu */
+            width: 100%;
+        }
+        .menu-content-aligned {
+            max-width: 800px; /* Match .container's max-width */
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 1.5rem; /* Vertical padding and horizontal padding to align with .container content */
+            box-sizing: border-box;
+        }
+        .top-menu .brand {
+            font-size: 1.5em;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .top-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+        }
+        .top-menu ul li {
+            margin-left: 20px;
+        }
+        .top-menu ul li a {
+            color: #ecf0f1; /* Light grey */
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .top-menu ul li a:hover {
+            background-color: #3498db; /* Blue */
+            color: white;
+        }
+        /* Existing styles */
+        .container{max-width:800px;margin:0 auto;background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1)} /* Added margin-top:0 explicitly */
+        h1,h2{text-align:center;color:#333} .input-group{display:flex;margin-bottom:1rem}
+        input{flex:1;padding:0.5rem;border:1px solid #ccc;border-radius:4px;margin-right:0.5rem}
+        button{padding:0.5rem 1rem;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer}
+        button:hover{background:#0056b3} .error{color:#b00;text-align:center;margin:0.5rem 0}
+        .list,.messages{list-style:none;padding:0} .list li{padding:0.5rem;border-bottom:1px solid #eee;cursor:pointer}
+        .list li:hover{background:#f0f0f0}.list li.selected{background:#007bff;color:#fff}
+        .messages li{padding:0.5rem;margin-bottom:0.5rem;border-radius:4px} 
+        .messages .sent{background:#dcf8c6;text-align:right} .messages .received{background:#e9e9eb;text-align:left}
+    </style>
+</head>
+<body>
+    <nav class="top-menu">
+        <div class="menu-content-aligned">
+            <a href="." class="brand">ChatApp</a>
+            <ul>
+                <li><a href=".">Visualizador</a></li>
+                <li><a href="/webhook/">Webhook</a></li>
+                <li><a href="/conversations/">Conversations API</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>Visualizador de Conversas</h1>
+        <div class="input-group">
+            <input id="convIdInput" placeholder="ID da conversa...">
+            <button id="fetchByIdBtn">Buscar por ID</button>
+        </div>
+        <div id="error" class="error"></div>
+        <h2>Conversas Disponíveis</h2>
+        <ul id="conversationsList" class="list"></ul>
+        <h2>Mensagens da Conversa</h2>
+        <ul id="messagesList" class="messages"></ul>
+    </div>
+    <script>
+        const apiList='conversations/', apiDetail=id=>`conversations/${id}/`; 
+        const listEl=document.getElementById('conversationsList');
+        const msgEl=document.getElementById('messagesList');
+        const errEl=document.getElementById('error');
+        const input=document.getElementById('convIdInput');
+        async function loadList(){
+            errEl.textContent=''; listEl.innerHTML='';
+            try{
+                const res=await fetch(apiList);
+                if(!res.ok) throw Error('Falha ao buscar conversas');
+                (await res.json()).forEach(c=>{
+                    const li=document.createElement('li');
+                    li.textContent=`ID: ${c.id} (Estado: ${c.state})`;
+                    li.onclick=()=>loadDetail(c.id,li);
+                    listEl.appendChild(li);
+                });
+            }catch(e){errEl.textContent=e.message}
+        }
+        async function loadDetail(id,sel){
+            errEl.textContent=''; msgEl.innerHTML='';
+            listEl.querySelectorAll('li').forEach(li=>li.classList.remove('selected'));
+            if (sel) sel.classList.add('selected'); // Check if sel exists
+            input.value=id;
+            try{
+                const res=await fetch(apiDetail(id));
+                if(!res.ok) throw Error('Conversa não encontrada');
+                (await res.json()).messages.forEach(m=>{
+                    const mli=document.createElement('li');
+                    mli.className=m.direction.toLowerCase();
+                    mli.innerHTML=`<strong>${m.direction}</strong>: ${m.content}
+                        <div style="font-size:0.8em;color:#555;">${new Date(m.timestamp).toLocaleString()}</div>`;
+                    msgEl.appendChild(mli);
+                });
+            }catch(e){errEl.textContent=e.message}
+        }
+        document.getElementById('fetchByIdBtn').onclick=()=>{
+                const id=input.value.trim(); 
+                if(id){
+                        // Try to find the corresponding list item to pass to loadDetail
+                        let listItem = null;
+                        listEl.querySelectorAll('li').forEach(li => {
+                                if (li.textContent.startsWith(`ID: ${id}`)){
+                                        listItem = li;
+                                }
+                        });
+                        loadDetail(id, listItem);
+                }
+        };
+        loadList();
+    </script>
+</body>
+</html>
